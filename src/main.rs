@@ -1,6 +1,5 @@
 use std::env;
 use std::io;
-use std::io::Read;
 use std::io::{BufRead, BufReader};
 use std::process;
 
@@ -13,29 +12,27 @@ macro_rules! exit {
     }
 }
 
-fn is_byte_whitespace(x: u8) -> bool {
-    const WHITESPACE: &[u8] = &[b' ', b'\t', b'\r', b'\n'];
-    WHITESPACE.iter().any(|&y| x == y)
+fn words<S: AsRef<str>>(s: S) -> Vec<String> {
+    s.as_ref().split(' ').map(String::from).filter(|item| !item.is_empty()).collect()
 }
 
 fn main() {
-    let needle: Vec<_> = env::args().nth(1)
-        .unwrap_or_else(|| exit!("usage: stream-search <needle>"))
-        .split(' ')
-        .map(|s| s.as_bytes().to_owned())
-        .collect();
+    let arg = env::args().nth(1)
+        .unwrap_or_else(|| exit!("usage: stream-search <needle>"));
+    let needle = words(arg);
     println!("needle: {:?}", needle);
 
     let input = io::stdin();
-    let mut reader = BufReader::new(input);
+    let reader = BufReader::new(input);
 
     // TODO: handle errors better
-    let mut data = vec![];
-    let _ = reader.read_to_end(&mut data).unwrap();
-    let mut haystack = data.split(|&c| c == b' ').map(ToOwned::to_owned);
+    let haystack = reader.lines().map(Result::unwrap).flat_map(words);
+
+    let data = haystack.collect::<Vec<_>>();
     println!("data: {:?}", data);
-    //let mut haystack = reader.split(b' ').map(Result::unwrap);
-    let mut haystack = haystack.map(|item| item.into_iter().filter(|&x| is_byte_whitespace(x)).collect::<Vec<_>>());
+    let haystack = data.into_iter();
+
+    let mut haystack = haystack;
 
     let mut cursor = 0;
     let mut lookahead = vec![];
