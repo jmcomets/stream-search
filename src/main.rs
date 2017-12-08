@@ -40,14 +40,14 @@ fn main() {
     // TODO: handle errors better
     let haystack = reader.lines().map(Result::unwrap).flat_map(words);
 
-    //let data: Vec<_> = haystack.collect();
-    //println!("data: {:?}", data);
-    //let haystack = data.into_iter();
+    let data: Vec<_> = haystack.collect();
+    println!("data: {:?}", data);
+    let haystack = data.into_iter();
 
     let mut haystack = haystack.enumerate();
 
     let mut best = None;
-    let mut partial_matches: Vec<Vec<Vec<usize>>> = vec![vec![]; needle.len()];
+    let mut partial_matches: Vec<Vec<(Option<usize>, usize)>> = vec![vec![/* this one can be huge */]; needle.len()];
 
     while let Some((cursor, word)) = haystack.next() {
         let matched_needle_indices: Vec<_> = needle.iter().enumerate()
@@ -59,11 +59,12 @@ fn main() {
         for &i in matched_needle_indices.iter() {
             // default-initialization
             if i == 0 {
-                partial_matches[0].push(vec![]);
+                partial_matches[0].push((None, 0));
             }
 
-            for partial_match in partial_matches[i].iter_mut() {
-                partial_match.push(cursor);
+            for &mut (ref mut prev_cursor, ref mut cost) in partial_matches[i].iter_mut() {
+                *cost += cursor - prev_cursor.unwrap_or(cursor);
+                *prev_cursor = Some(cursor);
             }
         }
 
@@ -78,27 +79,26 @@ fn main() {
             if i + 1 < partial_matches.len() {
                 partial_matches[i + 1].extend(extended_matches);
             } else {
-                for indices in extended_matches {
-                    let new_score = sum_adjacent_differences(indices.iter());
-
-                    //print!("match = {:?}; score = {:?} ... ", indices, new_score);
+                for (_, new_cost) in extended_matches {
+                    print!("cost = {:?} ... ", new_cost);
+                    //print!("match = {:?}; cost = {:?} ... ", indices, new_cost);
 
                     let is_better = best.as_ref()
-                        .map(|&(score, _)| new_score < score)
+                        .map(|&cost| new_cost < cost)
                         .unwrap_or(true);
                     if is_better {
-                        //println!("better");
-                        best = Some((new_score, indices));
+                        println!("better");
+                        best = Some(new_cost);
                     } else {
-                        //println!("worse");
+                        println!("worse");
                     }
                 }
             }
         }
     }
 
-    if let Some((_, indices)) = best {
-        println!("Best match: {:?}", indices);
+    if let Some(cost) = best {
+        println!("Best match: {:?}", cost);
     } else {
         println!("No match");
     }
